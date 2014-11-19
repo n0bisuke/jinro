@@ -85,8 +85,8 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var map = {
-		"./finishCtrl.js": 4,
-		"./headCtrl.js": 5,
+		"./discussCtrl.js": 4,
+		"./finishCtrl.js": 5,
 		"./mainCtrl.js": 6,
 		"./playerCtrl.js": 7,
 		"./readyCtrl.js": 8,
@@ -128,42 +128,42 @@
 	    $stateProvider
 	        .state("/",{
 	            url:"/",
-	            template: __webpack_require__(18),
+	            template: __webpack_require__(14),
 	            controller: "MainCtrl"
 	        })
 
 	        .state("/palyer",{
 	            url:"/player",
-	            template: __webpack_require__(19),
+	            template: __webpack_require__(15),
 	            controller: 'PlayerCtrl'
 	        })
 
 	        .state("/role",{
 	            url:"/role",
-	            template: __webpack_require__(20),
+	            template: __webpack_require__(16),
 	            controller: 'RoleCtrl'
 	        })
 	        .state("/ready",{
 	            url:"/ready",
-	            template: __webpack_require__(21),
+	            template: __webpack_require__(17),
 	            controller: 'ReadyCtrl'
 	        })
 
 	        .state("/discuss",{
 	            url:"/discuss",
-	            template: __webpack_require__(22),
-	            controller: 'ReadyCtrl'
+	            template: __webpack_require__(18),
+	            controller: 'DiscussCtrl'
 	        })
 
 	        .state("/finish",{
 	            url:"/finish",
-	            template: __webpack_require__(23),
+	            template: __webpack_require__(19),
 	            controller: 'ReadyCtrl'
 	        })
 
 	        .state("/signin",{
 	            url:"/signin",
-	            template: __webpack_require__(24),
+	            template: __webpack_require__(20),
 	            controller: 'SigninCtrl'
 	        });
 	}]);
@@ -174,23 +174,99 @@
 
 	'use strict';
 
+	angular.module('controllers').controller('DiscussCtrl', [
+	    '$scope',
+	    'storage',
+	    '$timeout',
+
+	    function ($scope, storage, $timeout) {
+	        var ROOM = storage.get('jinroRoom');
+	        var H = 0.01;
+
+	        //H分後に投票ボタンを表示
+	        $timeout(function() {
+	            $scope.enter = 'on';
+	        }, 1000 * 60 * H);
+
+	        jinroDS.child(ROOM).get(function(data){
+	            $scope.$apply(function(){
+	                $scope.num = data.count.num;
+	                $scope.roomEx = data.count.ex;
+	                $scope.friends = data.users;
+	            });
+	        });
+
+	        //投票
+	        $scope.vote = function(){
+	            if(!$scope.target){
+	                alert("対象者を選択して下さい");
+	                return;
+	            }
+
+	            var jinroData = [];
+	            jinroDS.child(ROOM).get(function(data){
+	                jinroData = data;
+	            });
+
+	            $timeout(function() {
+	                jinroData.vote.push($scope.target);
+	                jinroDS.set(ROOM, {vote: jinroData.vote, type: 'vote'}); //サーバー上に保存
+	                $scope.voted = 'on';
+	            },1000);
+	        };
+
+	        /*
+	         * milkcocoaイベント
+	         * */
+	        jinroDS.on('set', function(data) {
+	            //イントロページ
+	            if(data.value.type === 'vote') {
+	                console.log("投票", data.value.vote.length, $scope.num);
+	                if(data.value.vote.length >= $scope.num){//全員が投票
+	                    $scope.$apply(function(){
+	                        $scope.finish = 'on';
+	                    });
+	                }
+	            }else if(data.value.type === 'init'){
+	                init();
+	            }
+	        });
+
+	    }
+	]);
+
+/***/ },
+/* 5 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	__webpack_require__(11);
+
 	angular.module('controllers').controller('FinishCtrl', [
 	    '$scope',
 	    'storage',
+	    'UserModel',
 
-	    function ($scope, storage) {
+	    function ($scope, storage, UserModel) {
 	        var ROOM = 'ligroom1';
 	        //部屋情報取得
 	        var jinroData = {};
 	        jinroDS.child(ROOM).get(function(data){
 	            jinroData = data;
-	            console.log(jinroData);
 	        });
+
+	        $scope.voteResult = function(){
+	            console.log(jinroData.vote);
+
+	        };
 
 	        $scope.finish = function(){
 	            $scope.open = 1;
 
 	            var after = jinroData.after, tmp = [], result=[];
+
+	            if(!after[0]) after = jinroData.action;
 
 	            for(var i = 0, len = after.length; i < len; i++){
 	                tmp[i] = after[i].split(":");
@@ -201,57 +277,7 @@
 	            }
 
 	            $scope.friends = result;
-	            console.log(result);
 	        };
-	    }
-	]);
-
-/***/ },
-/* 5 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	//ディレクティブ読み込み
-	__webpack_require__(16);
-	__webpack_require__(17);
-	__webpack_require__(11);
-	__webpack_require__(12);
-
-	angular.module('controllers').controller('HeadCtrl', [
-	    '$scope',
-	    'storage',
-	    'EventModel',
-	    'LocalModel',
-	    function ($scope, storage, EventModel, LocalModel) {
-
-	        $scope.methodA = function(){
-	            alert();
-	        };
-
-	        $scope.plusplus = function(){
-	            $scope.ls += "a";
-	            LocalModel.set('userName',$scope.ls);
-	        };
-
-	        $scope.ping = function(){
-	            $scope.event = EventModel.query();
-	            LocalModel.huga();
-	        };
-
-	        //初期実行
-	        function init(){
-
-	            // * defaultValue: デフォルト値
-	            // * storeName: 変数名と異なる localStorage への保存 key を指定
-	            storage.bind($scope, 'varName', {
-	                defaultValue: 'n0bisuke',
-	                storeName: 'userName'
-	            });
-
-	            $scope.ls = storage.get('userName');
-	        }(init());
-
 	    }
 	]);
 
@@ -261,8 +287,8 @@
 
 	/* WEBPACK VAR INJECTION */(function(_) {'use strict';
 
-	__webpack_require__(13);
-	__webpack_require__(14);
+	__webpack_require__(11);
+	__webpack_require__(12);
 
 	angular.module('controllers').controller('MainCtrl',[
 	    '$scope',
@@ -274,30 +300,28 @@
 
 	    function ($scope, UserModel, RoomModel, storage, toaster, $timeout) {
 	        var ROOM = 'ligroom1';
+	        storage.set('jinroRoom', ROOM);
 
-	        //部屋情報取得
+	        //部屋情報取得チェック
 	        var jinroData = {};
-	        jinroDS.child(ROOM).get(function(data){
-	            jinroData = data;
-
-	            $scope.$apply(function(){
-	               $scope.num = jinroData.count.num;
-	                $scope.roomEx = jinroData.count.ex;
+	        init();
+	        function init(){
+	            jinroDS.child(ROOM).get(function(data){
+	                jinroData = data;
+	                $scope.$apply(function(){
+	                    $scope.num = jinroData.count.num;
+	                    $scope.roomEx = jinroData.count.ex;
+	                    //if(jinroData.length != 0) $scope.hideInit = 'on';
+	                });
 	            });
+	        }
 
-	        });
 
 	        //部屋初期化
 	        $scope.roomInit = function() {
-	            if (!$scope.num) {
-	                alert("人数を選択して下さい。");
-	            } else {
-	                $scope.roomEx = RoomModel.init(ROOM, $scope.num);
-	                console.log("初期化しました");
-	            }
+	            $scope.roomEx = RoomModel.init(ROOM, $scope.num);
 	        };
 
-	        //jinroDS.send({id:"せんど"});
 	        //ユーザー追加
 	        $scope.userInit = function(){
 
@@ -315,64 +339,38 @@
 	            setTimeout(function(){
 	                jinroData.users.push($scope.userName);
 	                console.log(jinroData.users);
-	                jinroDS.set(ROOM, {users:jinroData.users, page: 'intro'}); //サーバー上に保存
+	                jinroDS.set(ROOM, {users:jinroData.users, type: 'userInit'}); //サーバー上に保存
 	                storage.set('jinroUser', $scope.userName); //ローカルに保存
+	                storage.set('jinroNumber', jinroData.users.length); //ローカルに保存ユニーク番号
 	                $scope.friends = jinroData.users;
 	            },1000);
-
-	        };
-
-	        $scope.userUpdate = function(){
-	            $scope.friends = $scope.friends;
-	            if($scope.friends.length === NUM){
-	                $scope.enter = 1;
-	            }
 	        };
 
 
-	        jinroDS.on('send', function(data){
-	            console.log("げとせんd",data);
-	        });
-
+	        /*
+	         * milkcocoaイベント
+	         * */
 	        jinroDS.on('set', function(data) {
 	            //イントロページ
-	            if(data.value.page === 'intro') {
+	            if(data.value.type === 'userInit') {
 	                if (data.value.users[0]) { //自分以外
-	                    console.log('setted!', data.value.users);
-	                    var new_arr = _.union($scope.friends, data.value.users);
+	                    console.log('setted! userInit', data.value.users);
+	                    _.union($scope.friends, data.value.users);
 
 	                    $scope.$apply(function(){
 	                        $scope.friends = data.value.users;
+	                        $scope.hideInit = 'on'; //初期化を隠す
 	                        if($scope.friends.length === $scope.num) $scope.enter = 1;
 	                    });
-
 	                }
-	                else {//誰かが初期化を実行
-	                    console.log('初期化');
-	                }
+	            }else if(data.value.type === 'init'){
+	                init();
 	            }
-
-	            //配役ページ
-	            else if(data.value.page === 'role')
-	            {
-
-	            }
-
-
-
 	        });
-
-
-	        //
-	        //$scope.name = 'hokaccha';
-	        //$scope.$on('change:filter', function (evt, filter) {
-	        //    $scope.currentFilter = filter;
-	        //});));
-	        //
 
 	    }
 	]);
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(25)))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(21)))
 
 /***/ },
 /* 7 */
@@ -380,8 +378,8 @@
 
 	'use strict';
 
+	__webpack_require__(11);
 	__webpack_require__(13);
-	__webpack_require__(15);
 
 	angular.module('controllers').controller('PlayerCtrl', [
 	    '$scope',
@@ -497,7 +495,7 @@
 
 	'use strict';
 
-	__webpack_require__(13);
+	__webpack_require__(11);
 
 	angular.module('controllers').controller('ReadyCtrl', [
 	    '$scope',
@@ -505,171 +503,152 @@
 	    'storage',
 
 	    function ($scope, UserModel, storage) {
-	        var ROOM = 'ligroom1';
+	        var ROOM = storage.get('jinroRoom');
 	        var jinroRole = storage.get('jinroRole');
 	        $scope.ex =  jinroRole.ex;
 	        $scope.role =  jinroRole.name;
 	        $scope.userName =  storage.get('jinroUser');
 	        $scope.type =  jinroRole.role;
-	        $scope.partner = 1;
+
 	        //部屋情報取得
 	        var jinroData = {};
 	        jinroDS.child(ROOM).get(function(data){
 	            jinroData = data;
+	            $scope.$broadcast('get', jinroData);
+	            $scope.num = jinroData.users.length;
 	        });
 
+	        //アクションを完了する
+	        $scope.finishAction = function(){
+	            jinroDS.child(ROOM).get(function(data){
+	                jinroData = data;
+	                //$scope.$broadcast('setAction', jinroData);
+	            });
+
+	            setTimeout(function(){
+	                jinroDS.set(ROOM, {actionCount: jinroData.actionCount + 1, type: 'action'});
+	            },1000);
+
+	            $scope.btnHide = 'on';
+	        };
+
+	        //アクションを起こす
 	        $scope.action = function(){
 	            $scope.actionBtn = 1;
-	            $scope.partner = storage.get('partner');
+	            //$scope.partner = storage.get('partner');
 
+	            //怪盗と魔法使いの時はリスト表示
 	            if($scope.type === 'wizard' || $scope.type === 'thief'){
-	                var action = jinroData.action;
-	                var tmp = [];
-	                for(var i = 0, len = action.length; i < len; i++){
-	                    tmp[i] = action[i].split(":");
-	                }
-	                $scope.friends = tmp;
+	                $scope.friends = UserModel.getNameList(jinroData.action, 'obj');
 	            }
 	        };
 
-	        //人狼と狂人
+	        //人狼と狂人の場合
 	        if($scope.type === 'wolf' || $scope.type === 'crazy') {
-	            UserModel.getPlayer(ROOM, function (data) {
-	                $scope.friends = data;
-	                console.log("aaa", data);
-	                var target = '';
-
-	                if ($scope.type == 'wolf') {
-	                    for (var i = 0, len = data.length; i < len; i++) {
-	                        if (data[i].match(/crazy/)) {
-	                            target = data[i];
-	                        }
-	                    }
-	                } else if ($scope.type == 'crazy') {
-	                    for (var i = 0, len = data.length; i < len; i++) {
-	                        if (data[i].match(/wolf/)) {
-	                            target = data[i];
-	                        }
-	                    }
-	                }
-
-	                storage.set('partner', parse(target));
+	            $scope.$on('get',function(event, data){
+	                $scope.partner = UserModel.getPartner($scope.type, data.action);
 	            });
 	        }
-	        //怪盗
-	        else if($scope.type === 'thief'){
 
-	        }
-	        //魔法使い
-	        else if($scope.type === 'wizard'){
-	            console.log(jinroData);
 
-	            $scope.friends = jinroData.action;
-	        }
-	        //一般人
-	        else if($scope.type === 'general'){
-
-	        }
-
-	        //
+	        //役職を取得 -> 怪盗or魔法使い
 	        $scope.getRole = function(index){
-	            console.log($scope.friends[index]);
-	            var role = $scope.friends[index][0];
-	            var name = jinroData.role[role].name;
-	            var user = $scope.friends[index][1];
+	            var role = $scope.friends[index].role; //役職ID
+	            var roleName = jinroData.role[role].name; //役職名
+	            var userName = $scope.friends[index].name; //ユーザー名
+	            var message = userName + "さんは" + roleName + "です。";
 
-	            console.log(name);
 	            if($scope.type === 'wizard') {
-	                $scope.message = user + "さんは" + name + "です";
-	            }else{
-	                $scope.message = user + "さんは" + name + "です。" + user + 'さんの' + name + 'と怪盗を交換しました。';
-	                jinroDS.set(ROOM, {after:change(jinroData, role)});
+	                $scope.message = message;
+	            }else if($scope.type === 'thief'){
+	                $scope.message = message + userName + 'さんの' + roleName + 'と怪盗を交換しました。';
+	                jinroDS.set(ROOM, {after: UserModel.change(jinroData, role)});
 	            }
 	        };
+
+	        /*
+	         * milkcocoaイベント
+	         * */
+	        jinroDS.on('set', function(data) {
+	            if(data.value.type === 'action') {
+	                console.log("set action",data.value.actionCount);
+	                if(data.value.actionCount === $scope.num){//全員がアクション完了した
+	                    console.log("all action done");
+	                    $scope.$apply(function(){
+	                        $scope.enter = 'on';
+	                    });
+	                }
+	            }else if(data.value.type === 'init'){
+	                //   init();
+	            }
+	        });
 
 	    }
 	]);
-
-	//役職パーサー
-	function parse(item){
-	    var tmp = item.split(':');
-	    return tmp[1];
-	}
-
-	//役職交代
-	function change(jinroData, role){
-	    console.log("でーた",jinroData);
-	    var action = jinroData.action;
-	    var after = [];
-	    var tmp = [];
-	    var thief = "", target = "";
-
-	    for(var i = 0, len = action.length; i < len; i++){
-	        tmp[i] = action[i].split(":");
-	        if(tmp[i][0] === 'thief')thief = tmp[i]; //自分
-	        if(tmp[i][0] === role)target = tmp[i]; //交換対称
-	    }
-	    for(var i = 0, len = action.length; i < len; i++){
-	        tmp[i] = action[i].split(":");
-	        if(tmp[i][0] === 'thief'){
-	            after[i] = target[0]+":"+thief[1];
-	        }else if(tmp[i][0] === role){
-	            after[i] = thief[0]+":"+target[1];
-	        }else{
-	            after[i] = action[i];
-	        }
-	    }
-
-	    return after;
-	}
 
 /***/ },
 /* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
-	'use strict';
+	/* WEBPACK VAR INJECTION */(function(_) {'use strict';
 
-	__webpack_require__(13);
+	__webpack_require__(11);
 
 	angular.module('controllers').controller('RoleCtrl', [
 	    '$scope',
 	    'UserModel',
-	    'LocalModel',
 	    'storage',
 
-	    function ($scope, UserModel, LocalModel, storage) {
-	        var ROOM = 'ligroom1';
+	    function ($scope, UserModel, storage) {
+	        var ROOM = storage.get('jinroRoom');
+	        $scope.friends = [];
 	        $scope.userName = storage.get('jinroUser');
+	        var jinroNum = storage.get('jinroNumber') - 1;
+
 	        //部屋情報取得
 	        var jinroData = {};
 	        jinroDS.child(ROOM).get(function(data){
 	            jinroData = data;
+	            $scope.num = jinroData.count.num;
 	        });
 
 	        $scope.getRole = function(){
-	            var role = jinroData.current.shift();
-	            var action = role+':'+$scope.userName;
-	            var member = jinroData.action;
-	            member.push(action);
+	            jinroDS.child(ROOM).get(function(data){
+	                jinroData = data;
+	            });
 
-	            console.log("役", role);
-	            console.log("れじすと", action, member.length);
-	            console.log("もと", jinroData.current);
-
-	            if(member.length === 5){
-	                //全員
-	            }
-
-	            jinroDS.set(ROOM, {current:jinroData.current, action:member});
-	            storage.set("jinroRole", jinroData.role[role]);
-
-	            $scope.role = jinroData.role[role].name;
-	            $scope.ex = jinroData.role[role].ex;
-
+	            setTimeout(function(){
+	                var role = jinroData.current[jinroNum];
+	                var action = role+':'+$scope.userName;
+	                var member = jinroData.action;
+	                member.push(action); //役職を保存
+	                jinroDS.set(ROOM, {action:member, type:'role'});
+	                storage.set("jinroRole", jinroData.role[role]);
+	                $scope.role = jinroData.role[role].name;
+	                $scope.ex = jinroData.role[role].ex;
+	            },1000);
 	        };
+	        /*
+	        * milkcocoaイベント
+	        * */
+	        jinroDS.on('set', function(data) {
+	            if(data.value.type === 'role') {
+	                var new_arr = _.union($scope.friends, data.value.action);
+	                var names = UserModel.getNameList(data.value.action, 'obj');
 
+	                console.log("role init", names);
+
+	                $scope.$apply(function(){
+	                    $scope.friends = names;
+	                    if($scope.friends.length >= $scope.num) $scope.enter = 'on';
+	                });
+	            }else if(data.value.type === 'init'){
+	             //   init();
+	            }
+	        });
 	    }
 	]);
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(21)))
 
 /***/ },
 /* 10 */
@@ -688,187 +667,87 @@
 
 	'use strict';
 
-	angular.module('services').factory('EventModel', [
-	    '$resource',
-
-	    function ($resource) {
-	        var portals = $resource('js/testdata/event.json' ,{
-	            id: '@id'
-	        }, {
-	            'save': {
-	                method: 'POST'
-	            },
-	            'get': {
-	                method: 'GET',
-	                cache: true
-	            },
-	            'query': {
-	                method: 'GET',
-	                cache: true,
-	                isArray: true
-	            },
-	            'update': {
-	                method: 'PUT',
-	                isArray: false
-	            }
-	        });
-	        return portals;
-	    }
-	]);
-
-/***/ },
-/* 12 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	angular.module('services').factory('LocalModel', [
-	    'storage',
-
-	    function (storage) {
-	        var portals = {
-	            //init: function(){
-	            //    storage.bind($scope, 'varName', {
-	            //        defaultValue: 'n0bisuke',
-	            //        storeName: 'userName'
-	            //    });
-	            //},
-
-	            set: function(key, val){
-	                storage.set(key,val);
-	            },
-
-	            get: function(key){
-	                return storage.get(key);
-	            },
-
-	            huga: function(){
-	                console.log("ほげほげ");
-	            }
-	        };
-
-	        return portals;
-	    }
-	]);
-
-/***/ },
-/* 13 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
 	angular.module('services').factory('UserModel', [
 	    'storage',
 	    'MilkModel',
 
 	    function (storage, MilkModel) {
 	        var portals = {
+	            //名前のリストを取得する role:name
+	            getNameList: function(data, type){
+	                var tmp = [], names = [], obj=[];
+	                for(var i = 0, len = data.length; i < len; i++){
+	                    tmp[i] = data[i].split(":");
+	                    names[i] = tmp[i][1];
+	                    obj[i] = {name: tmp[i][1], role:tmp[i][0]};
+	                }
 
-	            //部屋があるかどうか確認する
-	            ping: function(room_name){
-	                jinroDataStore.child(room_name).get(getdata);
-	                function getdata(data){
-	                    if (!data) {
-	                        console.log("へやなし");
-	                        return false;
-	                    } else {
-	                        console.log(data);
-	                        return true;
+	                if(type) {
+	                    return obj; //オブジェクトで返す
+	                }else{
+	                    return names; //配列で返す
+	                }
+	            },
+
+	            //名前を取得する role:name
+	            getParse: function(data){
+	                var tmp = data.split(":");
+	                return {
+	                    role: tmp[0],
+	                    name: tmp[1]
+	                };
+	            },
+
+	            //役職交代 怪盗のみ
+	            change: function(jinroData, role){
+	                var action = jinroData.action;
+	                var after = [];
+	                var tmp = [];
+	                var thief = "", target = "";
+
+	                for(var i = 0, len = action.length; i < len; i++){
+	                    tmp[i] = action[i].split(":");
+	                    if(tmp[i][0] === 'thief')thief = tmp[i]; //自分
+	                    if(tmp[i][0] === role)target = tmp[i]; //交換対称
+	                }
+	                for(var i = 0, len = action.length; i < len; i++){
+	                    tmp[i] = action[i].split(":");
+	                    if(tmp[i][0] === 'thief'){
+	                        after[i] = target[0]+":"+thief[1];
+	                    }else if(tmp[i][0] === role){
+	                        after[i] = thief[0]+":"+target[1];
+	                    }else{
+	                        after[i] = action[i];
 	                    }
 	                }
 
-	            },
-	            addUser: function(){
-
-	                var roomRef = new Firebase('https://ngjinro.firebaseio.com/room1');
-
-	                var hoge = [1];
-	                roomRef.set({users: hoge});
-
-
-	                console.log("usr",roomRef);
-
-	            },
-	            //配役
-	            role: function(room_name, cb){
-	                MilkModel.get(room_name, function(data){
-	                    var init_data = data;
-	                    var role = init_data.current.shift();
-
-	                    console.log(role, init_data.current);
-	                    cb(role, init_data);
-
-	                });
-	                //jinroDataStore.child(room_name).get(function(data){
-	                //    var rnd = Math.floor(Math.random() * data.current.length);
-	                //    var current_role = data.current[rnd];
-	                //    var result = {
-	                //        name: data.role[current_role].name,
-	                //        ex: data.role[current_role].ex,
-	                //        role: current_role,
-	                //        main: data
-	                //    };
-	                //
-	                //    cb(result);
-	                //});
+	                return after;
 	            },
 
-	            //サーバー上の配役管理
-	            roleUp: function(room_name, data){
-	                MilkModel.set(room_name, data); //状態を保存
-	                storage('jinro_all', data); //ローカル保存
-	            },
+	            //人狼or狂人
+	            getPartner: function (type, data){
+	                var target = '';
+	                if(type === 'wolf'){
+	                    type='crazy';
+	                }else if(type === 'crazy'){
+	                    type='wolf';
+	                }
 
-
-	            //部屋削除
-	            remove: function(room_name){
-	                jinroDataStore.remove(room_name);
-	            },
-
-	            //役職
-	            roleUpdate: function(room_name, jinro){
-	                var current = jinro.main.current;
-	                var role = jinro.role;
-
-	                //配列から削除
-	                for(var i = 0, len = current.length; i < len; i++){
-	                    if(current[i] == role){
-	                        current.splice(i, 1);
-	                        break;
+	                for (var i = 0, len = data.length; i < len; i++) {
+	                    if ( data[i].indexOf(type) != -1) {
+	                        target = data[i];
 	                    }
 	                }
 
-	                //usersとcurrentを更新
-	                jinroDataStore.child(room_name).get(function(data){
-	                    var users = data.users;
-	                    users.push(role+':'+jinro.userName);
-	                    jinroDataStore.set(room_name, {current: current, users: users});
-	                    jinroDataStore.send({new_user: jinro.userName});
-	                });
 
-	            },
-
-	            //参加者情報
-	            getPlayer: function(room_name, cb){
-	                jinroDS.child(room_name).get(function(data){
-	                    cb(data.action);
-	                });
-	            },
-
-	            getPlayerName: function(room_name, cb){
-	                jinroDataStore.child(room_name).get(function(data){
-	                    cb(data.users);
-	                });
-	            },
-
-	            set: function(room_name){
-	                jinroDataStore.send({message : "from angular"},function(data){
-	                    console.log("送信完了!");
-	                });
-	            },
-	            huga: function(){
-	                console.log("ほげほげ");
+	                if(target === ''){
+	                    return 'none'; //狂人が居ない場合
+	                }else {
+	                    var tmp = target.split(':');
+	                    return tmp[1];
+	                }
 	            }
+
 	        };
 
 	        return portals;
@@ -876,7 +755,7 @@
 	]);
 
 /***/ },
-/* 14 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -888,35 +767,46 @@
 	        return {
 	            //部屋の初期化
 	            init: function(room_name, num){
-	                var casting = [];
-	                var mes = '';
-
-	                if(num === 1){//人数
-	                    casting = ['general', 'wizard', 'thief', 'crazy', 'wolf'];
-	                    mes = "役職は村人,怪盗,占い師,人狼,狂人です。";
-	                }else if(num === 3){
-	                    casting = ['general', 'thief', 'wolf'];
-	                    mes = "役職は村人,占い師,人狼です。";
-	                }else if(num === 4){
-	                    casting = ['wizard', 'thief', 'crazy', 'wolf'];
-	                    mes = "役職は怪盗,占い師,人狼,狂人です。";
-	                }else if(num === 5){
-	                    casting = ['general', 'wizard', 'thief', 'crazy', 'wolf'];
-	                    mes = "役職は村人,怪盗,占い師,人狼,狂人です。";
-	                }else if(num === 6){
-	                    casting = ['general', 'general', 'wizard', 'thief', 'crazy', 'wolf'];
-	                    mes = "役職は村人(2),怪盗,占い師,人狼,狂人です。";
-	                }else if(num === 7){
-	                    casting = ['general', 'general', 'wizard', 'thief', 'crazy', 'wolf', 'fox'];
-	                    mes = "役職は村人(2),怪盗,占い師,人狼,狂人,妖狐です。";
-	                }else if(num === 8){
-	                    casting = ['general', 'general', 'general', 'wizard', 'thief', 'crazy', 'wolf', 'fox'];
-	                    mes = "役職は村人(3),怪盗,占い師,人狼,狂人,妖狐です。";
+	                if(!num){
+	                    alert("人数を選択して下さい。");
+	                    return;
 	                }
 
-	                var init_data = __webpack_require__(26)(room_name, casting, mes);
+	                var casting = [];
+	                var mes = '';
+	                //人数
+	                if(num === 1){//でばっぐ用途
+	                    casting = ['general'];
+	                    mes = "村人";
+	                }else if(num === 2){//デバッグ用途
+	                    casting = ['wizard', 'wolf'];
+	                    mes = "狂人,人狼";
+	                }else if(num === 3){
+	                    casting = ['general', 'thief', 'wolf'];
+	                    mes = "村人,占い師,人狼";
+	                }else if(num === 4){
+	                    casting = ['wizard', 'thief', 'crazy', 'wolf'];
+	                    mes = "怪盗,占い師,人狼,狂人";
+	                }else if(num === 5){
+	                    casting = ['general', 'wizard', 'thief', 'crazy', 'wolf'];
+	                    mes = "村人,怪盗,占い師,人狼,狂人";
+	                }else if(num === 6){
+	                    casting = ['general', 'general', 'wizard', 'thief', 'crazy', 'wolf'];
+	                    mes = "村人(2),怪盗,占い師,人狼,狂人";
+	                }else if(num === 7){
+	                    casting = ['general', 'general', 'wizard', 'thief', 'crazy', 'wolf', 'fox'];
+	                    mes = "村人(2),怪盗,占い師,人狼,狂人,妖狐";
+	                }else if(num === 8){
+	                    casting = ['general', 'general', 'general', 'wizard', 'thief', 'crazy', 'wolf', 'fox'];
+	                    mes = "村人(3),怪盗,占い師,人狼,狂人,妖狐";
+	                }
+	                mes = "プレイヤーの役職内訳は"+mes+"です。";
+
+	                var init_data = __webpack_require__(22)(room_name, casting, mes);
 	                shuffle(init_data.current); //シャッフル
 	                jinroDS.set(room_name, init_data);
+
+	                console.log("初期化しました");
 
 	                return mes;
 	            },
@@ -930,6 +820,7 @@
 	                //    return data;
 	                //});
 	            }
+
 	        };
 
 	    }
@@ -949,7 +840,7 @@
 	}
 
 /***/ },
-/* 15 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -982,69 +873,49 @@
 	]);
 
 /***/ },
-/* 16 */
+/* 14 */
 /***/ function(module, exports, __webpack_require__) {
 
-	angular.module('directives').directive('navBtn', function() {
-	    return {
-	        template: __webpack_require__(27)
-	    };
-	});
+	module.exports = "<div ng-controller=\"MainCtrl\">\n\n    <toaster-container toaster-options=\"{'position-class': 'toast-top-full-width'}\"></toaster-container>\n\n    <div ng-hide=\"init\">\n        <label>プレイヤー名を入力してください。</label>\n        <input type=\"text\" placeholder=\"例:のびすけ\" ng-model=\"userName\" required />\n    </div>\n\n    <!--ユーザー名入力後-->\n    <div class=\"callout panel\" ng-if=\"userName != null\" ng-hide=\"init\">\n        <p>ユーザー名は{{userName}}でよろしいですか?</p>\n        <button ng-click=\"userInit()\">確定</button>\n    </div>\n\n    <div class=\"large-12 columns\" ng-show=\"init\">\n        <p>あなたのユーザー名は<strong>{{userName}}</strong>です。</p>\n\n        <div class=\"callout panel\">\n            <p>参加者が{{num}}人になったら開始します。</p>\n            <p>現在の参加者は<strong>{{friends.length}}</strong>名です。</p>\n            <p class=\"secondary round label\" ng-repeat=\"friend in friends\" >{{friend}}</p>\n        </div>\n\n        <a href=\"#/role\" class=\"laerge success button\" ng-show=\"enter\">入室</a>\n    </div>\n\n    <!--<div class=\"large-6 medium-6 small-6 columns\" ng-show=\"init\">-->\n        <!--<button ng-click=\"userCheck()\">ユーザー確認</button>-->\n    <!--</div>-->\n\n    <!--<div class=\"large-6 medium-6 small-6 columns\">-->\n    <!--<select>-->\n    <!--<option value=\"husker\" ng-repeat=\"room in rooms\">{{room}}</option>-->\n    <!--</select>-->\n    <!--</div>-->\n\n    <div class=\"large-12 columns\" ng-hide=\"init\">\n\n        <!--<div>-->\n            <!--<label for=\"room\">部屋を作成する場合は部屋名を入力してください。</label>-->\n            <!--<input type=\"text\" id=\"room\" placeholder=\"例:のびすけRoom\" ng-model=\"roomName\" required>-->\n        <!--</div>-->\n\n        <!--<button class=\"laerge round button\" ng-show=\"roomName\">-->\n            <!--部屋作成-->\n        <!--</button>-->\n\n        <div class=\"panel\">\n            <h3>{{num}}人ゲームです。</h3>\n            <p>{{roomEx}}</p>\n\n            <div class=\"row\">\n                <div class=\"large-4 medium-4 columns\">\n                    <p>by <a href=\"http://qiita.com/n0bisuke\">@n0bisuke </a></p>\n                </div>\n            </div>\n\n        </div>\n        <hr/>\n\n        <div ng-hide=\"hideInit\">\n            人数\n            <div ng-init=\"hoge = [1,2,3,4,5,6,7,8]\"></div>\n            <select ng-model=\"num\" ng-options=\"c for c in hoge\">\n            </select><br/>\n\n            <button class=\"laerge alert button\" ng-click=\"roomInit()\">初期化</button>\n        </div>\n    </div>\n\n</div>";
 
 /***/ },
-/* 17 */
-/***/ function(module, exports, __webpack_require__) {
-
-	angular.module('directives').directive('navBtn2', function() {
-	    return {
-	        template: __webpack_require__(28)
-	    };
-	});
-
-/***/ },
-/* 18 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = "<div ng-controller=\"MainCtrl\">\n\n    <toaster-container toaster-options=\"{'position-class': 'toast-top-full-width'}\"></toaster-container>\n\n    <div ng-hide=\"init\">\n        <label>プレイヤー名を入力してください。</label>\n        <input type=\"text\" placeholder=\"例:のびすけ\" ng-model=\"userName\" required />\n    </div>\n\n    <!--ユーザー名入力後-->\n    <div class=\"callout panel\" ng-if=\"userName != null\" ng-hide=\"init\">\n        <p>ユーザー名は{{userName}}でよろしいですか?</p>\n        <button ng-click=\"userInit()\">確定</button>\n    </div>\n\n    <div class=\"large-12 columns\" ng-show=\"init\">\n        <p>あなたのユーザー名は<strong>{{userName}}</strong>です。</p>\n\n        <div class=\"callout panel\">\n            <p>参加者が{{num}}人になったら開始します。</p>\n            <p>現在の参加者は<strong>{{friends.length}}</strong>名です。</p>\n            <p class=\"secondary round label\" ng-repeat=\"friend in friends\" >{{friend}}</p>\n        </div>\n\n        <a href=\"#/role\" class=\"laerge success button\" ng-show=\"enter\">入室</a>\n    </div>\n\n    <!--<div class=\"large-6 medium-6 small-6 columns\" ng-show=\"init\">-->\n        <!--<button ng-click=\"userCheck()\">ユーザー確認</button>-->\n    <!--</div>-->\n\n    <!--<div class=\"large-6 medium-6 small-6 columns\">-->\n    <!--<select>-->\n    <!--<option value=\"husker\" ng-repeat=\"room in rooms\">{{room}}</option>-->\n    <!--</select>-->\n    <!--</div>-->\n\n    <div class=\"large-12 columns\" ng-hide=\"init\">\n\n        <!--<div>-->\n            <!--<label for=\"room\">部屋を作成する場合は部屋名を入力してください。</label>-->\n            <!--<input type=\"text\" id=\"room\" placeholder=\"例:のびすけRoom\" ng-model=\"roomName\" required>-->\n        <!--</div>-->\n\n        <!--<button class=\"laerge round button\" ng-show=\"roomName\">-->\n            <!--部屋作成-->\n        <!--</button>-->\n\n        <div class=\"panel\">\n            <h3>{{num}}人ゲームです。</h3>\n            <p>{{roomEx}}</p>\n\n            <div class=\"row\">\n                <div class=\"large-4 medium-4 columns\">\n                    <p>by <a href=\"http://qiita.com/n0bisuke\">@n0bisuke </a></p>\n                </div>\n            </div>\n\n        </div>\n\n        <hr/>\n\n        人数\n\n        <div ng-init=\"hoge = [3,4,5,6,7,8]\"></div>\n        <select ng-model=\"num\" ng-options=\"c for c in hoge\">\n        </select><br/>\n\n        <button class=\"laerge alert button\" ng-click=\"roomInit()\">初期化</button>\n\n    </div>\n\n</div>";
-
-/***/ },
-/* 19 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	module.exports = "<div class=\"large-12 columns\" ng-controller=\"PlayerCtrl\">\n\n    <div ng-hide=\"init\">\n        <label>プレイヤー名を入力してください。</label>\n        <input type=\"text\" placeholder=\"例:のびすけ\" ng-model=\"userName\" required>\n    </div>\n\n    <!--ユーザー名入力後-->\n    <div class=\"callout panel\" ng-show=\"userName\">\n        <p>ユーザー名は{{userName}}になります。</p>\n        <button ng-click=\"userInit()\" ng-hide=\"init\">確定</button>\n    </div>\n\n    <ul>\n        <li ng-repeat=\"friend in member\">{{friend}}</li>\n    </ul>\n\n</div>";
 
 /***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = "<div class=\"large-12 columns\" ng-controller=\"RoleCtrl\">\n\n    <!--ユーザー名入力後-->\n    <div class=\"callout panel\">\n        <p>{{userName}}さんの役職は...\n            <strong>{{role}}</strong>\n            です。\n        </p>\n    </div>\n\n    <div ng-hide=\"role\">\n        <button class=\"laerge round button\" ng-click=\"getRole()\" ng-show=\"userName\">\n            役職を決める\n        </button>\n    </div>\n\n    <!--配役後-->\n    <div class=\"panel\" ng-show=\"role\">\n        <h3>役職解説</h3>\n        <p>{{ex}}</p>\n    </div>\n\n    <a href=\"#/ready\" class=\"laerge round button\" ng-show=\"enter\">\n        ゲームを始める\n    </a>\n\n    <hr>\n    <p>{{num}}人の役職が決まるまでお待ちください。</p>\n    <p class=\"secondary round label\" ng-repeat=\"friend in friends\" >{{friend.name}}さんの役職が決まりました。</p>\n\n</div>\n\n";
+
+/***/ },
+/* 17 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = "<div class=\"large-12 columns\" ng-controller=\"ReadyCtrl\">\n    <div>\n        <div class=\"callout panel\">\n            <p>夜が来ました。役職毎にアクションをしてください。</p>\n        </div>\n\n        <div class=\"panel\">\n            <h3>役職解説: <strong>{{role}}</strong>{{userName}}</h3>\n            <p>{{ex}}</p>\n        </div>\n\n        <div ng-show=\"actionBtn\">\n\n            <div ng-if=\"type === 'thief'\">\n                交換する相手を選んでください。\n                <hr/>\n                <span ng-repeat=\"friend in friends\" ng-hide=\"message\">\n                    <button class=\"laerge round button\" ng-if=\"friend.name !== userName\" ng-click=\"getRole($index)\">{{friend.name}}</button>\n                </span>\n\n                <hr/>\n                <p>{{message}}</p>\n            </div>\n\n            <div ng-if=\"type === 'general'\">特にアクションはありません。</div>\n\n            <div ng-if=\"type === 'wizard'\">\n                見る相手を選んでください。\n                <hr/>\n                <span ng-repeat=\"friend in friends\" ng-click=\"getRole($index)\" ng-hide=\"message\">\n                    <button class=\"laerge round button\" ng-if=\"friend.name !== userName\">{{friend.name}}</button>\n                </span>\n                <hr/>\n                <p>{{message}}</p>\n            </div>\n\n            <div ng-if=\"type === 'crazy'\">\n                人狼は{{partner}}さんです。\n            </div>\n\n            <div ng-if=\"type === 'wolf'\">\n                <p ng-if=\"partner !== 'none'\">狂人は{{partner}}さんです。</p>\n                <p ng-if=\"partner === 'none'\">このゲームでは狂人はいません。</p>\n            </div>\n\n        </div>\n\n        <br/>\n\n        <button class=\"laerge success button\" ng-hide=\"actionBtn\" ng-click=\"action()\">\n            アクションを起こす。\n        </button>\n\n        <button class=\"laerge alert button\" ng-if=\"actionBtn === 1\" ng-click=\"finishAction()\" ng-hide=\"btnHide\">\n            アクションを完了する。\n        </button>\n\n        <p ng-show=\"btnHide\">全員のアクションが完了するまで少々お待ちください。</p>\n\n        <a href=\"#/discuss\" class=\"laerge alert button\" ng-show=\"enter\">\n            ディスカッションへ\n        </a>\n\n    </div>\n\n</div>\n\n";
+
+/***/ },
+/* 18 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = "<div class=\"large-12 columns\" ng-controller=\"DiscussCtrl\">\n\n    <div class=\"callout panel\">\n        <strong>ディスカッションをしてください。</strong>\n    </div>\n\n    <div class=\"panel\">\n        <p>{{num}}人ゲームで、</p>\n        <p>{{roomEx}}</p>\n    </div>\n\n    <div ng-show=\"enter\" ng-hide=\"voted\">\n        <select ng-model=\"target\" ng-options=\"c for c in friends\">\n        </select>\n        <br/>\n        <button ng-click=\"vote()\">{{target}}の処刑に投票する</button>\n    </div>\n\n    <div ng-show=\"voted\" ng-cloak>\n        <p>{{target}}に投票しました。</p>\n        <p>全員の投票が終わるまでお待ち下さい。</p>\n    </div>\n\n    <hr/>\n\n    <a href=\"#/finish\" class=\"laerge alert button\" ng-show=\"finish\">\n        結果へ。。。\n    </a>\n\n</div>\n\n";
+
+/***/ },
+/* 19 */
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = "<div class=\"large-12 columns\" ng-controller=\"FinishCtrl\">\n    <button ng-click=\"voteResult()\">投票結果</button>\n    <button ng-click=\"finish()\">答えあわせ</button>\n\n    <ul ng-show=\"open\">\n        <li ng-repeat=\"friend in friends\" >{{friend.name}} : {{friend.role}}</li>\n    </ul>\n    <a href=\"#/\" class=\"laerge success button\" ng-show=\"open\">topにもどる</a>\n\n</div>";
+
+/***/ },
 /* 20 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = "<div class=\"large-12 columns\" ng-controller=\"RoleCtrl\">\n\n    <!--ユーザー名入力後-->\n    <div class=\"callout panel\">\n        <p>{{userName}}さんの役職は...\n            <strong>{{role}}</strong>\n            です。\n        </p>\n    </div>\n\n    <div ng-hide=\"role\">\n        <button class=\"laerge round button\" ng-click=\"getRole()\" ng-show=\"userName\">\n            役職を決める\n        </button>\n    </div>\n\n    <!--配役後-->\n    <div class=\"panel\" ng-show=\"role\">\n        <h3>役職解説</h3>\n        <p>{{ex}}</p>\n    </div>\n\n    <a href=\"#/ready\" class=\"laerge round button\" ng-show=\"role\">\n        ゲームを始める\n    </a>\n\n    <!--<div ng-init=\"friends = ['まろ','のび','りょうちん']\">-->\n    <!--<span class=\"label\" ng-repeat=\"friend in friends\">-->\n        <!--{{friend}}-->\n    <!--</span>-->\n\n</div>\n\n";
-
-/***/ },
-/* 21 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = "<div class=\"large-12 columns\" ng-controller=\"ReadyCtrl\">\n\n    <!--<div ng-hide=\"ready\">-->\n        <!--ほげほげ-->\n    <!--</div>-->\n\n    <div>\n\n        <div class=\"callout panel\">\n            <p>夜が来ました。役職にあったアクションをしてください。</p>\n        </div>\n\n        <div class=\"panel\">\n            <h3>役職解説: <strong>{{role}}</strong>{{userName}}</h3>\n            <p>{{ex}}</p>\n        </div>\n\n        <div ng-show=\"actionBtn\">\n\n            <div ng-if=\"type === 'thief'\">\n                交換する相手を選んでください。\n                <button class=\"laerge round button\" ng-repeat=\"friend in friends\" ng-click=\"getRole($index)\" ng-hide=\"message\">\n                    {{friend[1]}}\n                </button>\n                <hr/>\n                <p>{{message}}</p>\n            </div>\n\n            <div ng-if=\"type === 'general'\">特にアクションはありません。</div>\n\n            <div ng-if=\"type === 'wizard'\">\n                見る相手を選んでください。\n                <button class=\"laerge round button\" ng-repeat=\"friend in friends\" ng-click=\"getRole($index)\" ng-hide=\"message\">\n                    {{friend[1]}}\n                </button>\n                <hr/>\n                <p>{{message}}</p>\n            </div>\n\n            <div ng-if=\"type === 'crazy'\">\n                人狼は{{partner}}さんです。\n            </div>\n\n            <div ng-if=\"type === 'wolf'\">\n                <p ng-if=\"partner !== undefined\">狂人は{{partner}}さんです。</p>\n                <p ng-if=\"partner === false\">このゲームでは狂人はいません。</p>\n            </div>\n\n        </div>\n\n        <br/>\n\n        <button class=\"laerge success button\" ng-hide=\"actionBtn\" ng-click=\"action()\">\n            アクションを起こす。\n        </button>\n\n        <a href=\"#/finish\" class=\"laerge alert button\" ng-if=\"actionBtn === 1\">\n            アクションを完了する。\n        </a>\n\n    </div>\n\n</div>\n\n";
-
-/***/ },
-/* 22 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = "";
-
-/***/ },
-/* 23 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = "<div class=\"large-12 columns\" ng-controller=\"FinishCtrl\">\n    <button ng-click=\"finish()\">答えあわせ</button>\n\n    <ul ng-show=\"open\">\n        <li ng-repeat=\"friend in friends\" >{{friend.name}} : {{friend.role}}</li>\n    </ul>\n\n    <a href=\"#/\" class=\"laerge success button\" ng-show=\"open\">topにもどる</a>\n\n</div>";
-
-/***/ },
-/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	module.exports = "<div ng-controller=\"SigninCtrl\">\n    <input type=\"text\"/>\n    <button ng-click=\"auth()\">そうしんsss</button>\n    ほげほげほげ<br />\n    あああああああ<br />\n    ほげほげ<br />\n    ほげほげ\n</div>";
 
 /***/ },
-/* 25 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;//     Underscore.js 1.7.0
@@ -2465,7 +2336,7 @@
 
 
 /***/ },
-/* 26 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	module.exports = function(room_name, casting, roomEx){
@@ -2479,8 +2350,8 @@
 	              role: 'general'
 	          },
 	          wizard:  {
-	              name: '魔法使い',
-	              ex: '魔法で1人だけ正体を知ることが出来ます。',
+	              name: '占い師',
+	              ex: '占いで1人だけ正体を知ることが出来ます。',
 	              team: 'human',
 	              role: 'wizard'
 	          },
@@ -2510,28 +2381,18 @@
 	          }
 	      },
 	      users : [],
-	      page: '',
+	      type: 'init',
 	      count: {
 	          num: casting.length,
 	          ex: roomEx
 	      },
 	      current : casting,
 	      action: [],
-	      after: []
+	      after: [],
+	      actionCount: 0,
+	      vote: []
 	  };
 	};
-
-/***/ },
-/* 27 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = "<p>ほげほげ</p>\n<p>ほげほげ</p>\n<p>ほげほげ</p>\n<p>ほげほげ</p>";
-
-/***/ },
-/* 28 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = "<p>aaa</p>\n<p>aaa</p>\n";
 
 /***/ }
 /******/ ])
